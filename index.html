@@ -1,0 +1,606 @@
+<!doctype html>
+<html>
+	<head>
+		<title>D.C. Incident Dash</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="description" content="A simple framework for all-source data collection that the user can customize to fit his or her needs.">
+		
+		<style>
+			html,body, #map{
+				background-color: black;
+				padding: 0;
+				height:100%;
+				margin:0
+			}
+
+			#cpTop {
+				width: 300px;
+	            height:50px;
+	        }
+	        #cpLeft {
+	            width: 300px;
+	            overflow: hidden;
+	        }
+
+
+		    #search {
+		         display: block;
+		         position: absolute;
+		         z-index: 2;
+		         top: 20px;
+		         left: 74px;
+		      }
+
+		    .arcgisSearch.searchIcon {
+			      color:red;
+			      font-size:20px;
+			}
+
+			.arcgisSearch.searchInput {
+				  background-color: black;
+			      color:red;
+			      font-size:20px;
+			}
+
+			a:link, a:visited {
+			    background-color: black;
+			    color: white;
+			    padding: 14px 25px;
+			    text-align: center; 
+			    text-decoration: none;
+			    display: inline-block;
+			}
+
+			a:hover, a:active {
+			    background-color: black;
+			    color: red
+			}
+
+			
+			.rss-widget{
+			  width: 300px;
+			  margin: 0 auto;
+			  
+			  ul{
+			    margin: 0;
+			    padding: 0;
+			    text-align: left;
+
+			    
+			    li{
+			      list-style:none;
+			      padding: 1em;
+			      margin-bottom: .125em;
+			      
+			      list-style: none;
+			      text-decoration: none;
+			      text-transform: uppercase;
+			      
+			      
+			    }
+			  }
+			}
+
+			
+		</style>
+		<link rel="stylesheet" href="https://js.arcgis.com/3.16/esri/css/esri.css">
+		<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/dojo/1.10.4/dijit/themes/claro/claro.css">
+		<link rel="stylesheet" href="https://js.arcgis.com/3.16/dijit/themes/claro/claro.css">
+		<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Inconsolata">
+		<link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:400,900' rel='stylesheet' type='text/css'>
+			
+		<script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1-rc1/jquery.min.js"></script>
+		<script src="https://js.arcgis.com/3.16/"></script> 	
+		<script>
+            var dojoConfig = {
+                async: true
+            };
+        </script>
+	</head>
+	<body class="claro">
+		<script>
+			var map, scalebar, toolbar, symbol, widgetEditor, functionMode;
+
+			require([
+			"dojo/dom",
+			"dojo/on",
+			"dojo/parser",
+			"dijit/form/Button",
+			"dijit/form/Select",
+			"esri/map",
+			"esri/dijit/Scalebar",
+			"esri/dijit/LayerList",
+			"esri/InfoTemplate",
+			"esri/symbols/SimpleFillSymbol",
+	        "esri/symbols/SimpleLineSymbol",
+	        "dojo/_base/array",
+        	"esri/Color",
+        	"esri/dijit/editing/Editor",
+        	"esri/dijit/editing/TemplatePicker",
+        	
+        	"esri/tasks/GeometryService",
+        	"esri/toolbars/edit",
+        	"esri/config",
+        	"dojo/keys",
+        	"esri/layers/FeatureLayer",
+        	"esri/symbols/SimpleMarkerSymbol",
+        	"esri/toolbars/draw",
+        	"dijit/registry",
+        	"esri/graphic",
+        	"esri/dijit/Measurement",
+
+        	"esri/geometry/jsonUtils",
+        	"dijit/Menu",
+        	"dijit/MenuItem",
+        	"esri/symbols/Font", 
+        	"esri/symbols/TextSymbol",
+        	"esri/geometry/Point",
+        	
+        	
+
+			"esri/arcgis/utils",
+			"esri/urlUtils",
+			"dojo/dom-construct",
+			"esri/layers/ArcGISDynamicMapServiceLayer",
+			"esri/dijit/BasemapToggle",
+			"esri/layers/WebTiledLayer",
+			"esri/dijit/Search",
+			"dijit/layout/BorderContainer",
+			"dijit/layout/ContentPane",
+			"dijit/layout/TabContainer",
+			"dojo/ready",
+			"dojo/domReady!"
+			],function(dom,on,parser,Button, Select, Map, Scalebar, LayerList, InfoTemplate, SimpleFillSymbol, SimpleLineSymbol, arrayUtils, Color, Editor, TemplatePicker, GeometryService, Edit, esriConfig, keys, FeatureLayer, SimpleMarkerSymbol, Draw, registry, Graphic, Measurement,
+				geometryJsonUtils, Menu, MenuItem, Font, TextSymbol, Point, 
+				arcgisUtils, urlUtils, domConstruct, ArcGISDynamicMapServiceLayer, BasemapToggle,WebTiledLayer, Search, ready){
+				parser.parse();
+
+				//Geometry service 
+        		esriConfig.defaults.geometryService = new GeometryService("https://sampleserver6.arcgisonline.com/arcgis/rest/services/Utilities/Geometry/GeometryServer");
+		        
+        		// Makes the map 
+   				map = new Map("mapDiv", {
+			    center: [ -77.035965, 38.897262], //longitude, latitude
+			    zoom: 12,
+			    slider: true 
+	  			});
+
+
+	  			// When the map loads, the drawing toolbar will be created and the label menu will be created
+	  			map.on("load", createToolbar);
+	  			map.on("load", createMapMenu)
+
+
+
+	  			// connects the buttons triggered on a click to the function to draw the selected shape
+		        registry.forEach(function(d) {
+		          if ( d.declaredClass === "dijit.form.Button" ) {
+		            d.on("click", activateTool);
+		          }
+		        });
+
+		        function activateTool() {
+		          var tool = this.label.toUpperCase().replace(/ /g, "_");
+		          toolbar.activate(Draw[tool]);
+		          map.hideZoomSlider();
+		        }
+
+		        function createToolbar(themap) {
+		          toolbar = new Draw(map);
+		          toolbar.on("draw-end", addToMap);
+		        }
+
+		        function addToMap(evt) {
+		          var symbol;
+
+		          toolbar.deactivate();
+		          map.showZoomSlider();
+		          switch (evt.geometry.type) {
+		            case "point":
+		            case "multipoint":
+		              symbol = new SimpleMarkerSymbol();
+		              symbol.setColor(new Color([255,255,0,0.5]));
+		              break;
+		            case "polyline":
+		              symbol = new SimpleLineSymbol();
+		              symbol.setColor(new Color([255,255,0,0.5]));
+		              break;
+		            default:
+		              symbol = new SimpleFillSymbol();
+		              symbol.setColor(new Color([255,255,0,0.5]));
+		              break;
+		          }
+		          var graphic = new Graphic(evt.geometry, symbol);
+		          map.graphics.add(graphic);
+		        }
+
+
+		        //Get the value from the Text Box
+		        var box0 = registry.byId("value0Box");
+		        on(box0, "change", dotext)
+
+		        function dotext() {
+		            myText = box0.get("value");
+		            return;
+		        }
+
+
+		        // variables for text symbol renderer
+		        var myText = "";
+		        var newColor = [221,28,119]
+		        var myFont = 20;
+		        var bold = Font.WEIGHT_BOLD;
+				var italic = Font.STYLE_NORMAL;
+				var underline = "none";
+
+				//right menu for text labels
+		        function createMapMenu() {
+		        	ctxMenuForMap = new Menu({
+		                onOpen: function (box) {
+		                    currentLocation = getMapPointFromMenuPosition(box);// runs functions to get location of user's right click
+		                }
+		            });
+
+		            // shows the menu to add text to map
+		            ctxMenuForMap.addChild(new MenuItem({
+		                label: "Add Text",
+		                onClick: function (evt) {
+		                	// rederer for text symbol
+		                    var symbol = new TextSymbol(myText).setColor(
+		                    new Color(newColor)).setAlign(Font.ALIGN_START).setAngle(0).setDecoration(underline).setFont(
+		                    new Font(myFont).setWeight(bold).setStyle(italic));
+		                    var point2 = new Point(geometryJsonUtils.fromJson(currentLocation.toJson()));
+		                    var graphic = new Graphic(point2, symbol);
+		                    map.graphics.add(graphic);
+									
+		                }
+		            }));
+
+		            ctxMenuForMap.startup();
+		            ctxMenuForMap.bindDomNode(map.container);
+		        };
+
+		        // gets the location of the map that the user right clicks on
+		        function getMapPointFromMenuPosition(box) {
+		            var x = box.x,
+		                y = box.y;
+		            var screenPoint = new Point(x - map.position.x, y - map.position.y);
+		            return map.toMap(screenPoint);
+		        }
+
+        		
+		        // Search widget
+	  			var search = new Search({
+		            map: map
+		         }, "search");
+		         search.startup();
+
+		        
+		         //Gives user ability to turn on and off imagery
+	  			var checkbox = dom.byId("basemapToggle");
+	  			on(checkbox,"click", function(e){
+	  				if (checkbox.checked){
+	  					customBasemap.hide();
+	  					map.setBasemap("satellite");
+	  					myWidget.refresh();
+			        }
+			        else{
+			        	var basemap = map.getLayer(map.layerIds[0]);
+			        	basemap.hide();
+			        	customBasemap.show();
+			        	myWidget.refresh();
+			        }
+	  			});
+
+	  			// button to clear graphics user drew
+	  			var clearButt = dom.byId("clearButton");
+	  			on(clearButt, "click", function(v){
+          			map.graphics.clear();
+	  			});
+
+	  			// Stamen Maps: http://maps.stamen.com/toner/#12/37.7706/-122.3782
+				var customBasemap = new WebTiledLayer("http://${subDomain}.tile.stamen.com/toner/${level}/${col}/${row}.png", {
+	  				"copyright": "Stamen Toner",
+          			"id": "Black & White Basemap",
+          			"subDomains": ["a", "b", "c", "d"],
+          			"visible": true
+	  			});
+
+	  			// incident Point layer - hosted on ArcGIS Online
+		         var incPoint = new FeatureLayer("http://services3.arcgis.com/eyU1lVcSnKSGItET/ArcGIS/rest/services/DC_Point_Incident/FeatureServer/0",{
+			          mode: FeatureLayer.MODE_ONDEMAND, 
+			          id: "Inicdent Point",
+			          outFields: ['*']
+			        });
+
+		        // incident Area layer - hosted on ArcGIS Online
+		         var incArea = new FeatureLayer("http://services3.arcgis.com/eyU1lVcSnKSGItET/ArcGIS/rest/services/DC_Incident_Area/FeatureServer/0",{
+			          mode: FeatureLayer.MODE_ONDEMAND, 
+			          id: "Incident Area",
+			          outFields: ['*']
+			        });
+
+		        // DC Data
+				 layerEMS = new ArcGISDynamicMapServiceLayer("http://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Public_Safety_WebMercator/MapServer",{
+				 	id: "Emergency Services",
+				 	outFields: ["*"]				 	
+				 });
+
+				 layerTrans = new ArcGISDynamicMapServiceLayer("http://maps2.dcgis.dc.gov/dcgis/rest/services/DCGIS_DATA/Transportation_WebMercator/MapServer",{
+				 	id: "Transportation"
+				 });
+
+				 // NOAA watches and alerts
+				 layerNOAA = new ArcGISDynamicMapServiceLayer("https://idpgis.ncep.noaa.gov/arcgis/rest/services/NWS_Forecasts_Guidance_Warnings/watch_warn_adv/MapServer",{
+				 	id: "Weather Conditions"
+				 });
+
+				 //Add layers to map
+				 map.addLayers([customBasemap,layerTrans, incArea, layerNOAA, layerEMS, incPoint]);
+
+		
+		
+	        	//Template picker
+	            templatePicker = new TemplatePicker({
+	                featureLayers: [incPoint, incArea]
+	            }, "tempDiv");
+	            templatePicker.startup();
+
+	            var layers = [
+	           		{featureLayer: incPoint},
+	            	{featureLayer: incArea}
+	            	];
+
+
+	            //Editor toolbar
+	            var settings = {
+	                map: map,
+	                templatePicker: templatePicker,
+	                layerInfos: layers,
+	                toolbarVisible: true,
+	                toolbarOptions: {
+	                    reshapeVisible: true
+	                }
+	            };
+	            var params = {
+	                settings: settings
+	            };
+	            myEditor = new Editor(params, 'editDiv');
+	            myEditor.startup();
+
+
+
+	            // Scale bar
+	  			scalebar = new Scalebar({
+				    map: map,
+				    scalebarUnit: "english"
+				  });
+
+
+
+	  			// Layer List Widget
+	  			var myWidget = new LayerList({
+		           map: map,
+		           layers: arcgisUtils.getLayerList(map) ,
+		           showOpacitySlider: true,
+		           showLegend: true
+		        },"layerList");	
+		        myWidget.startup();  
+
+		        // measurement widget
+		        var measurement = new Measurement({
+		          map: map
+		        }, dom.byId("measurementDiv"));
+		        measurement.startup();  
+				
+});
+
+		</script>		
+				
+		<div id="content"
+		 data-dojo-type="dijit/layout/BorderContainer"
+		  data-dojo-props = "design:'headline'"
+		  style="width:100%;height:100%">  
+
+        <div id="titleBlock" 
+        data-dojo-type="dijit/layout/ContentPane" 
+        data-dojo-props="region: 'top'" 
+        style="height:30px; width:300px; font-weight: bold; text-align: middle; font-size: 18pt; background-color: black; color: white; font-family: Inconsolata">
+        	   Washington D.C. Incident Dashboard&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
+        	   <SPAN style="color:red; font-size: 18; font-family:Inconsolata; font-weight: bold">Today's Date:</SPAN> 
+
+        	</div>
+
+
+        <div id="sidebar"
+         data-dojo-type="dijit/layout/TabContainer"
+          data-dojo-props="region: 'left'" 
+          style="width:400px; background-color: black; color: white">
+
+
+          		<div id="layersTab"
+                 data-dojo-type="dijit/layout/ContentPane"
+                 title="Layers" 
+                 
+                 style="background-color: black; color: white;font-family: Inconsolata">
+                 Check to turn on imagery <input type="checkbox" id="basemapToggle"><br><br>
+                 	<div id="layerList"></div>
+
+                 </div>
+
+                <div id="incidentsTab"
+                 data-dojo-type="dijit/layout/ContentPane"
+                  title="Feeds"
+                   style="font-weight: bold; background-color: black; font-family: Inconsolata"> Select a feed type:<br><br>
+                   <div id"accord">
+                   <div data-dojo-type="dijit/layout/AccordionContainer"
+              				 style="height: 100%; color: black">
+						      <div data-dojo-type="dijit/layout/ContentPane" id="legendPane"
+						           data-dojo-props="title:'Local News'">
+						        <div data-dojo-type="dijit/layout/TabContainer" style="width: 100%; height: 100%;">
+						        Click one of the following links to search for news:
+							        <ul>
+							        	<li><a href="http://www.fox5dc.com/" target="_blank">FOX</a></li><br>
+							        	<li><a href="http://www.cnn.com/"target="_blank">CNN</a></li><br>
+							        	<li><a href="http://www.breakingnews.com/" target="_blank">Blog: Breaking News</a></li><br>
+							        	<li><a href="https://ics-cert.us-cert.gov/" target="_blank">US CERT</a></li><br>
+							        	<li><a href="http://wtop.com/" target="_blank">WTOP</a></li><br>
+							        </ul>
+   
+								</div>
+
+						      </div>
+
+						      <div data-dojo-type="dijit/layout/ContentPane"
+						           data-dojo-props="title:'RSS - Crime News'">
+						           Below is an RSS feed from Breaking News 
+						      		<div class="rss-widget">
+									  <ul></ul>
+									</div>
+						      </div>
+
+						      <div data-dojo-type="dijit/layout/ContentPane"
+						           data-dojo-props="title:'Audio feeds'">
+						        	<div data-dojo-type="dijit/layout/TabContainer" style="width: 100%; height: 100%;">
+								        <div data-dojo-type="dijit/layout/ContentPane" title="Police Scanner" data-dojo-props="selected:true">
+								        	Anne Arundal Country Police and EMS scanner feed:<br><br>
+								        	<iframe height="245px" src="http://api.broadcastify.com/embed/player/?key=57573945&amp;feedId=13759&amp;stats=1&amp;as=0&amp;bg=000000&amp;fg=FFFFFF" width="320px">Your browser does not support iFrames.
+						        			</iframe>
+						        			<br>
+						        			<br>
+						        			High chatter scanner (for demonstration purposes only)
+						        			<iframe height="245px" src="http://api.broadcastify.com/embed/player/?key=57573945&amp;feedId=763&amp;stats=1&amp;as=0&amp;bg=000000&amp;fg=FFFFFF" width="320px">Your browser does not support iFrames.
+						        			</iframe>
+								        </div>
+								        <div data-dojo-type="dijit/layout/ContentPane" title="Local Radio">
+								        	103.5 WTOP<br><br>
+								        	<audio controls>
+												<source src="http://208.92.52.36/WTOPFM.mp3?nocache=1464026354" type="audio/mpeg">
+											    Your browser does not support the audio tag.
+											</audio>
+								        </div>
+								    </div>
+						      </div>
+						    </div>
+                   </div>
+                </div>       
+                  
+                
+                <div id="mapLegend"
+                 data-dojo-type="dijit/layout/ContentPane"
+                 title="Active Situation" 
+                 style="background-color: black; color: white;font-family: Inconsolata">
+	                 <div id="incidents">
+	                 <br>
+	                 Use these buttons to annotate the map
+	                 <br><br>
+						<button data-dojo-type="dijit/form/Button">Point</button>
+					    <button data-dojo-type="dijit/form/Button">Line</button>
+					    <button data-dojo-type="dijit/form/Button">Polygon</button>
+					    <button data-dojo-type="dijit/form/Button">Freehand Line</button>
+					    <button data-dojo-type="dijit/form/Button">Freehand Polygon</button>
+					    <button data-dojo-type="dijit/form/Button">Arrow</button>
+					    <button data-dojo-type="dijit/form/Button">Circle</button>
+                	 <br>                 
+	                 <br>
+	                 Use this box to label the map. To add text to the the map, right click and select add text<br><br>
+	            	 <input id="value0Box" data-dojo-type="dijit/form/TextBox" value="" placeHolder="enter your text here" data-dojo-props="intermediateChanges:true"></input>
+	            	 <br><br>
+	                 Use this area to store information about the inicdent you are monitoring. <br>
+	                 <br>
+	                 	<div>
+		                 <textarea rows="20" cols="50"></textarea>
+		                </div>
+		                <br>
+		                Below is a set of measurement tools<br><br>
+		                	<div style="background-color: white; color: black">	
+		                		<div id="measurementDiv"></div>
+		                	</div><br><br>
+		                	<button data-dojo-type="dijit/form/Button" id="clearButton">Clear ALL Graphics</button>
+	                 <br>
+	                 <br>
+	                 	
+      				</div>
+      			</div>
+
+      			<div id="Editor"
+                 data-dojo-type="dijit/layout/ContentPane"
+                 title="Create Event" 
+                 data-dojo-props="selected: true"
+                 style="background-color: black; color: black;font-family: Inconsolata">
+                 	<div> Select a type of inicdent to create. Attachments are enabled.<br><br>
+		                <div id="tempDiv"></div>
+                		<div id="editDiv"></div>
+                	</div>
+        		</div>
+        	</div>
+
+        <div id="map"
+         data-dojo-type="dijit/layout/ContentPane"
+          data-dojo-props="region: 'center'"
+           style="background:grey"> 
+           <div id="search"></div>
+           <div id="mapDiv" style="width: 100%; height: 100%; background-color: grey; padding: 0">
+           		<div style="position:absolute; right:20px; top:10px; z-Index:999;"></div>	
+           </div>	
+		</div>
+		<script>
+			// Adds the current date to the title block
+			var currentTime = new Date();
+			var today = currentTime.toLocaleDateString("en-US");
+			document.getElementById("titleBlock").innerHTML += today;
+
+
+			// Gets the RSS feed from the provided URL and adds it to an unordered list
+			function RSSWidget (url, goToDiv){
+			  rss = this;
+			  rss.FEED_URL = url; 
+			  rss.JSON = new Array(); // list to hold entry objects
+			  rss.widgetHolder = $(goToDiv); 
+			  // number of entries pushed to list
+			  rss.storiesLimit = 10; 
+
+			  // implamented Google's feed API
+			  // https://developers.google.com/feed/v1/devguide
+			  $.ajax({
+			    url      : 'http://ajax.googleapis.com/ajax/services/feed/load?v=1.0&num=10&callback=?&q=' + encodeURIComponent(rss.FEED_URL),
+			    dataType : 'json',
+			    success  : function (data) {
+			    // checks for response from feed server
+			      if (data.responseData.feed && data.responseData.feed.entries) {
+			        $.each(data.responseData.feed.entries, function (i, e) {
+			          rss.JSON.push({ //add objects to the array
+			            title: e.title,
+			            link: e.link
+			          });
+			        });
+			        // this limits the displa to ten (limit set above)
+			        if(rss.storiesLimit > rss.JSON.length) 
+			          rss.storiesLimit = rss.JSON.length;
+
+			      	// for each object in the arrray, runs the render 
+			        for(var i=0; i<rss.storiesLimit; i++){
+			          rss.renderItem(rss.JSON[i]); 
+			        }
+			        
+			      }
+			    }
+			  });
+
+			 // creates new hyperlink for each story
+			  rss.renderItem = function (object){
+			    var item  = '<li>';
+			        item += '<a href="'+ object.link +'"target="_blank">'+object.title+'</a><br /><br />'
+			        item += '</li>';
+
+			    // Appends it to the unordered list
+			    rss.widgetHolder.append(item);
+			  }
+
+			}
+			// Active the RSS function
+			var bnews = '.rss-widget ul';
+			RSSWidget("https://api.breakingnews.com/api/v1/item/?format=rss", bnews);
+		</script>
+	</body>
+</html>
