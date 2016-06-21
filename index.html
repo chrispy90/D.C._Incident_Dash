@@ -74,14 +74,24 @@
 			      
 			      list-style: none;
 			      text-decoration: none;
-			      text-transform: uppercase;
-			      
-			      
+			      text-transform: uppercase; 
 			    }
 			  }
 			}
 
-			
+			.titleText{
+				color: white;
+				font-weight: bold;
+				font-size: 18pt;
+				padding-top: 20px;
+				padding-bottom: 10px
+			}
+
+			.bodyText{
+				color: white;
+				font-size: 12pt
+			}
+
 		</style>
 		<link rel="stylesheet" href="https://js.arcgis.com/3.16/esri/css/esri.css">
 		<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/dojo/1.10.4/dijit/themes/claro/claro.css">
@@ -516,6 +526,7 @@
 		                	<div style="background-color: white; color: black">	
 		                		<div id="measurementDiv"></div>
 		                	</div><br><br>
+
 		                	<button data-dojo-type="dijit/form/Button" id="clearButton">Clear ALL Graphics</button>
 	                 <br>
 	                 <br>
@@ -528,11 +539,34 @@
                  title="Create Event" 
                  data-dojo-props="selected: true"
                  style="background-color: black; color: black;font-family: Inconsolata">
-                 	<div> Select a type of inicdent to create. Attachments are enabled.<br><br>
+                 	<div style="color: white; font-weight: bold">
+                 		Select a type of incident to create. Attachments are enabled.<br><br>
+                 	</div>
+                 	<div> 
 		                <div id="tempDiv"></div>
                 		<div id="editDiv"></div>
                 	</div>
+                	<div>
+                		<div class="titleText">About this web application</div>
+                		<div class="bodyText">This web application is configured to identify and monitor incidents in the Washington D.C. area. 
+                							   The tabs on the left of the screen allow the user to log incidents on the map.<br>
+                							   <ol>
+                							   	<li>Use the feeds tab to identify and locate an incident.</li>
+                							   	<li>Use the geocoder to zoom to the impacted area and create the incident.</li>
+                							   	<li>Use the layers and active situation tabs to create meaningful products that show the impact of the incident.</li>
+                							   	<li>Send maps to personnel reponding to the incident.</li>
+                							   </ol>
+                							 Feel free to customize your own version of this application. The source code can be found at<a style="font-weight: bold; font-size: 16pt" href="https://github.com/chrispy90/D.C._Incident_Dash" target="_blank" >GitHub</a><br><br>
+                							 Chris Petroff<br>
+                							 University of Mary Washington<br>
+                							 Masters of Geospatial Analysis<br>
+                							 <a href="http://petroffmapping.pythonanywhere.com/" target="_blank" style="font-weight: bold; font-size: 16pt">Portfolio</a>
+
+
+                		</div>
+                	</div>
         		</div>
+        		
         	</div>
 
         <div id="map"
